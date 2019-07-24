@@ -23,9 +23,15 @@ should add your `config.yml` file:
 
 ```yaml
 feature_extraction:
-   name: pyannote.models.ConvNN2D
-   params:
-    test: 1
+  name: pyannote.models.ConvNN2D
+  params:
+    conv_layers: 3
+    conv_channels: 128
+    layers_pooling: [2, 2, 2 ,2]
+    final_pooling: 4
+    gru_cells: 128
+    linear_layers: [32, 32]
+    n_classes: 5
 ```
 
 This corresponds to the following model structure (Pytorch reprensation):
