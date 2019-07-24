@@ -170,3 +170,7 @@ class DeviNet(nn.Module):
         x = self.final_activation(x)
 
         return x
+
+    @property
+    def n_classes(self):
+        return self.fc_layers[0].out_features
