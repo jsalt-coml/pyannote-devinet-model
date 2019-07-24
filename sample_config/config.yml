@@ -1,7 +1,7 @@
 feature_extraction:
-  name: pyannote.models.ConvNN2D
+  name: pyannote.models.DeviNet
   params:
-    conv_layers: 3
+    conv_blocks: 3
     conv_channels: 128
     layers_pooling: [2, 2, 2 ,2]
     final_pooling: 4

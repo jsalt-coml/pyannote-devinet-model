@@ -1,2 +1,2 @@
 
-from .cnn2d import ConvNN2D
+from .cnn2d import DeviNet

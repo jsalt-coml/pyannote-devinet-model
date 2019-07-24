@@ -33,7 +33,7 @@ with open('README.md') as f:
     long_description = f.read()
 
 setup(
-    name='pyannote.models.cnn2d',
+    name='pyannote.models.devinet',
     namespace_packages=['pyannote'],
     packages=find_packages(),
     install_requires=["torch >= 1.0.0"],
@@ -46,7 +46,7 @@ setup(
 
     author='Hadrien Titeux (CoML)',
     author_email='hadrien.titeux@ens.fr',
-    url='https://github.com/jsalt-coml/pyannote-cnn2d-model',
+    url='https://github.com/jsalt-coml/pyannote-devinet-model',
 
     classifiers=[
         "Development Status :: 4 - Beta",

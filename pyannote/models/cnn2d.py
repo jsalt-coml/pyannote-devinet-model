@@ -75,9 +75,39 @@ class GatedBiGRU(nn.Module):
         return output
 
 
-class ConvNN2D(nn.Module):
+class DeviNet(nn.Module):
+    """2D Gated convolutional blocks, followed by a gated Bi-GRU
+    and a fully connected layer (for classification)
 
-    def __init__(self, conv_layers: int = 3,
+        Parameters
+        ----------
+        conv_blocks : `int`
+            Number of gated convolutional blocks.
+        conv_channels : `int`
+            Number of channels in the convolutional blocks
+        layers_pooling : `List[int]`
+            Pooling kernel size for the frequency dimension on each convolutional block.
+            WARNING: the product(layers_pooling) * final_pooling should be equal to the
+            number of filter-banks in the input tensor.
+        gru_cells : `int`
+            Number of GRU (hidden) cells in the gated bi-GRU layer.
+        linear_layers: `List[int]`
+            Hidden dimensions for each linear layer of the fully connected layer.
+        n_classes: `int`
+            Number of output classes, then used for detection.
+
+        Usage
+        -----
+        Same as `torch.nn.Conv1d`
+
+        Reference
+        ---------
+        Yong Xu, Qiuqiang Kong, Wenwu Wang, Mark D. Plumbley.
+        "Large-scale weakly supervised audio classification using
+        gated convolutional neural network". DCASE 2017. https://arxiv.org/abs/1710.00343
+        """
+
+    def __init__(self, conv_blocks: int = 3,
                  conv_channels: int = 128,
                  layers_pooling: List[int] = None,
                  final_pooling: int = 4,
@@ -88,7 +118,7 @@ class ConvNN2D(nn.Module):
         self.total_freq_pooling = torch.tensor(layers_pooling).prod() * final_pooling
         self.gru_cells = gru_cells
         gcnns_list = [PooledGCNNBlock(conv_channels, layers_pooling[0], input_channel_dim=1)]
-        for i in range(1, conv_layers):
+        for i in range(1, conv_blocks):
             gcnns_list.append(PooledGCNNBlock(conv_channels, layers_pooling[i]))
         self.pooled_gcnns = nn.Sequential(*gcnns_list)
         self.final_conv = nn.Conv2d(in_channels=conv_channels,
