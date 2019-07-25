@@ -151,14 +151,15 @@ class DeviNet(nn.Module):
         """
 
     def __init__(self, specifications: dict,
-                 conv_blocks: int = 3,
-                 conv_channels: int = 128,
+                 conv_blocks: int = 4,
+                 conv_channels: int = 64,
                  layers_pooling: List[int] = None,
                  final_pooling: int = 4,
                  dropout: float = 0.0,
                  recurrent: List[int] = None,
                  gated_rnn: bool = True,
-                 linear_layers: List[int] = None):
+                 linear_layers: List[int] = None,
+                 activation_type: str = "tanh"):
         super().__init__()
 
         if specifications["task"] not in {TASK_MULTI_CLASS_CLASSIFICATION,
@@ -169,23 +170,28 @@ class DeviNet(nn.Module):
             raise ValueError(msg)
 
         self.specifications = specifications
+
         self.total_freq_pooling = torch.tensor(layers_pooling).prod() * final_pooling
         gcnns_list = [PooledGCNNBlock(conv_channels, layers_pooling[0], input_channel_dim=1)]
         for i in range(1, conv_blocks):
             gcnns_list.append(PooledGCNNBlock(conv_channels, layers_pooling[i]))
         self.pooled_gcnns = nn.Sequential(*gcnns_list)
+
+        # after the gated convolutional blocks, a final "vanilla" convolution and a maxpool
         self.final_conv = nn.Conv2d(in_channels=conv_channels,
-                                    out_channels=conv_channels * 2,
+                                    out_channels=conv_channels * 4,
                                     kernel_size=(3, 3),
-                                    stride=2,
+                                    stride=1,
                                     padding=1,
                                     bias=True)
         self.final_pool = nn.MaxPool2d(kernel_size=(1, final_pooling))
+
+        # dropout intermezzo before the recurrent layer
         self.dropout = nn.Dropout(p=dropout)
 
         # setting up stack of recurrent layers
         recurrent_layers = []
-        input_dim = conv_channels * 2
+        input_dim = conv_channels * 4
         for hidden_size in recurrent:
             if gated_rnn:
                 recurrent_layers.append(GatedBiGRU(input_dim, hidden_size))
@@ -196,16 +202,19 @@ class DeviNet(nn.Module):
 
         # setting up fully connected layers
         fc_layers = []
-        input_dim = recurrent_layers[1]
+        input_dim = recurrent[1]
         for hidden_size in linear_layers:
-            fc_layers.append(nn.Linear(input_dim, hidden_size,bias=True))
-            fc_layers.append(nn.Tanh())
+            fc_layers.append(nn.Linear(input_dim, hidden_size, bias=True))
+            if activation_type == "tanh":
+                fc_layers.append(nn.Tanh())
+            elif activation_type == "sigmoid":
+                fc_layers.append(nn.Sigmoid())
+            else:
+                raise ValueError(f"Invalid activation type {activation_type}")
             input_dim = hidden_size
         final_layer = nn.Linear(input_dim, self.n_classes,
                                 bias=True)
         self.fc_layers = nn.Sequential(*(fc_layers + [final_layer]))
-
-        self.final_activation = nn.Sigmoid()
 
     def forward(self, x: FloatTensor):
 
@@ -231,22 +240,20 @@ class DeviNet(nn.Module):
         x = x.transpose(1, 2).contiguous()
 
         # going through the gater BiGRU
-        x = self.gated_bigru(x)
+        x = self.rnns(x)
 
         # fully connected layers
         x = self.fc_layers(x)
 
-        # sigmoid activation
-        output = self.final_activation(x)
+        # final activation
+        if self.task_type == TASK_MULTI_CLASS_CLASSIFICATION:
+            return torch.log_softmax(x, dim=2)
 
-        if self.task_type_ == TASK_MULTI_CLASS_CLASSIFICATION:
-            return torch.log_softmax(output, dim=2)
+        elif self.task_type == TASK_MULTI_LABEL_CLASSIFICATION:
+            return torch.sigmoid(x)
 
-        elif self.task_type_ == TASK_MULTI_LABEL_CLASSIFICATION:
-            return torch.sigmoid(output)
-
-        elif self.task_type_ == TASK_REGRESSION:
-            return torch.sigmoid(output)
+        elif self.task_type == TASK_REGRESSION:
+            return torch.sigmoid(x)
 
     @property
     def classes(self):
