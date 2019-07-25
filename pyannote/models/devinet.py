@@ -171,6 +171,9 @@ class DeviNet(nn.Module):
 
         self.specifications = specifications
 
+        if conv_blocks != len(layers_pooling):
+            raise ValueError("There must be as many pooling layers values as conv blocks")
+
         self.total_freq_pooling = torch.tensor(layers_pooling).prod() * final_pooling
         gcnns_list = [PooledGCNNBlock(conv_channels, layers_pooling[0], input_channel_dim=1)]
         for i in range(1, conv_blocks):
