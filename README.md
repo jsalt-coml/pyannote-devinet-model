@@ -1,16 +1,15 @@
 # pyannote-devinet-model
 
-A CNN-RNN model for speaker detection. Mostly a Pytorch reimplementation of the model 
+A CNN-RNN model for speaker detection. Mostly a PyTorch reimplementation of the model 
 described in [Large-scale weakly supervised audio classification using gated convolutional neural network](https://arxiv.org/abs/1710.00343), 
 and a implemented [here](https://github.com/yongxuUSTC/dcase2017_task4_cvssp) in Keras.
 
 ## Installation
 
-This library only depends on Pytorch, thus you can install it standalone and use the module
-as provided. However, it's been made to be imported and used inside a
+This library's been made to be imported and used inside a
  [pyannote-audio](https://github.com/pyannote/pyannote-audio) environment.
  
-Once this is done, you can install it through pip:
+Once this is done (and the environment activated), you can install it through pip:
 
 ``` 
 pip install git+git://github.com/jsalt-coml/pyannote-devinet-model.git
@@ -37,7 +36,7 @@ feature_extraction:
 This corresponds to the following model structure (Pytorch reprensation):
 
 ```
-ConvNN2D(
+DeviNet(
   (pooled_gcnns): Sequential(
     (0): PooledGCNNBlock(
       (gated_cnns): Sequential(

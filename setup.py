@@ -36,7 +36,7 @@ setup(
     name='pyannote.models.devinet',
     namespace_packages=['pyannote'],
     packages=find_packages(),
-    install_requires=["torch >= 1.0.0"],
+    install_requires=["torch >= 1.0.0", "pyannote.audio"],
 
     version="0.1",
 
