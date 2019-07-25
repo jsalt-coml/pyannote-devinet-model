@@ -54,6 +54,26 @@ class PooledGCNNBlock(nn.Module):
         return x
 
 
+class BiGRU(nn.Module):
+
+    def __init__(self, input_size: int,
+                 hidden_size: int):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.gru = nn.GRU(input_size=input_size,
+                          hidden_size=hidden_size,
+                          bidirectional=True,
+                          batch_first=True)
+
+    def forward(self, x: FloatTensor):
+        # no need to initialize the hidden vectors for the GRU, if not specified they
+        # are intialized by default
+        output, _ = self.gru(x)
+        avg_output = (output[:, :, self.hidden_size:]
+                      + output[:, :, :self.hidden_size])
+        return avg_output
+
+
 class GatedBiGRU(nn.Module):
     """A Gater Bi-GRU block. Two bi-GRU with the output of one "gated" (weighted by a sigmoid)
     by the other
@@ -71,22 +91,14 @@ class GatedBiGRU(nn.Module):
                  hidden_size: int):
         super().__init__()
         self.hidden_size = hidden_size
-        self.gru_sig, self.gru_lin = (nn.GRU(input_size=input_size,
-                                             hidden_size=hidden_size,
-                                             bidirectional=True,
-                                             batch_first=True) for _ in range(2))
+        self.gru_sig, self.gru_lin = (BiGRU(input_size=input_size,
+                                            hidden_size=hidden_size) for _ in range(2))
         self.sig = nn.Sigmoid()
 
     def forward(self, x: FloatTensor):
-        # no need to initialize the hidden vectors for the GRU, if not specified they
-        # are intialized by default
-        output_sig, _ = self.gru_sig(x)
-        avg_output_sig = (output_sig[:, :, self.hidden_size:]
-                          + output_sig[:, :, :self.hidden_size])
-        output_lin, _ = self.gru_lin(x)
-        avg_output_lin = (output_lin[:, :, self.hidden_size:]
-                          + output_lin[:, :, :self.hidden_size])
-        output = self.sig(avg_output_sig) * avg_output_lin
+        output_sig = self.gru_sig(x)
+        output_lin = self.gru_lin(x)
+        output = self.sig(output_sig) * output_lin
 
         return output
 
@@ -144,7 +156,8 @@ class DeviNet(nn.Module):
                  layers_pooling: List[int] = None,
                  final_pooling: int = 4,
                  dropout: float = 0.0,
-                 gru_cells: int = 128,
+                 recurrent: List[int] = None,
+                 gated_rnn: bool = True,
                  linear_layers: List[int] = None):
         super().__init__()
 
@@ -157,7 +170,6 @@ class DeviNet(nn.Module):
 
         self.specifications = specifications
         self.total_freq_pooling = torch.tensor(layers_pooling).prod() * final_pooling
-        self.gru_cells = gru_cells
         gcnns_list = [PooledGCNNBlock(conv_channels, layers_pooling[0], input_channel_dim=1)]
         for i in range(1, conv_blocks):
             gcnns_list.append(PooledGCNNBlock(conv_channels, layers_pooling[i]))
@@ -170,10 +182,21 @@ class DeviNet(nn.Module):
                                     bias=True)
         self.final_pool = nn.MaxPool2d(kernel_size=(1, final_pooling))
         self.dropout = nn.Dropout(p=dropout)
-        self.gated_bigru = GatedBiGRU(conv_channels * 2, gru_cells)
 
+        # setting up stack of recurrent layers
+        recurrent_layers = []
+        input_dim = conv_channels * 2
+        for hidden_size in recurrent:
+            if gated_rnn:
+                recurrent_layers.append(GatedBiGRU(input_dim, hidden_size))
+            else:
+                recurrent_layers.append(BiGRU(input_dim, hidden_size))
+            input_dim = hidden_size
+        self.rnns = nn.Sequential(*recurrent_layers)
+
+        # setting up fully connected layers
         fc_layers = []
-        input_dim = conv_channels
+        input_dim = recurrent_layers[1]
         for hidden_size in linear_layers:
             fc_layers.append(nn.Linear(input_dim, hidden_size,bias=True))
             fc_layers.append(nn.Tanh())
@@ -181,6 +204,7 @@ class DeviNet(nn.Module):
         final_layer = nn.Linear(input_dim, self.n_classes,
                                 bias=True)
         self.fc_layers = nn.Sequential(*(fc_layers + [final_layer]))
+
         self.final_activation = nn.Sigmoid()
 
     def forward(self, x: FloatTensor):

@@ -28,9 +28,10 @@ feature_extraction:
     conv_channels: 128
     layers_pooling: [2, 2, 2 ,2]
     final_pooling: 4
-    gru_cells: 128
+    dropout: 0.3
+    recurrent: [128]
+    gated_rnn: True
     linear_layers: [32, 32]
-    n_classes: 5
 ```
 
 This corresponds to the following model structure (Pytorch reprensation):
