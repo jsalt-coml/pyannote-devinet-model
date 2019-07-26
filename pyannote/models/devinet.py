@@ -209,7 +209,7 @@ class DeviNet(nn.Module):
 
         # setting up fully connected layers
         fc_layers = []
-        input_dim = recurrent[1]
+        input_dim = recurrent[-1]
         for hidden_size in linear_layers:
             fc_layers.append(nn.Linear(input_dim, hidden_size, bias=True))
             if activation_type == "tanh":
