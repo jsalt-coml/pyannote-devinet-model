@@ -130,12 +130,16 @@ class DeviNet(nn.Module):
             Pooling kernel size for the frequency dimension on each convolutional block.
             WARNING: the product(layers_pooling) * final_pooling should be equal to the
             number of filter-banks in the input tensor.
-        gru_cells : `int`
-            Number of GRU (hidden) cells in the gated bi-GRU layer.
+        final_pooling : `int`
+            Final pooling size for the frequency block
+        dropout : `float`
+            Dropout probability
+        recurrent : `List[int]`
+            Hidden size of each recurrent layer
+        gated_rnn : `bool`
+            Wether or not should the rnn-block be gated (in the same fashion as the conv blocks)
         linear_layers: `List[int]`
             Hidden dimensions for each linear layer of the fully connected layer.
-        n_classes: `int`
-            Number of output classes, then used for detection.
 
         Usage
         -----
@@ -241,6 +245,9 @@ class DeviNet(nn.Module):
         x = x.squeeze(3)
         # switching from (N,C,T) to (N,T,C) in preparation for the RNN layer
         x = x.transpose(1, 2).contiguous()
+
+        # dropout intermezzo before the recurrent layer
+        x = self.dropout(x)
 
         # going through the gater BiGRU
         x = self.rnns(x)
